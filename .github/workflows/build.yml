@@ -1,26 +1,42 @@
-name: Build
+name: Android CI
+
 on:
+  pull_request:
   push:
+    branches:
+    - 'main'
+    - '4.**'
+    - '5.**'
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
 
 jobs:
-# Build job. Builds app for Android with Buildozer
-build-android:
-  name: Build for Android
-  runs-on: ubuntu-latest
+  build:
 
-  steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+    runs-on: ubuntu-latest-8-cores
 
-    - name: Build with Buildozer
-      uses: ArtemSBulgakov/buildozer-action@v1
-      id: buildozer
+    steps:
+    - uses: actions/checkout@v3
       with:
-        workdir: <specify the directory of the app no don't mention this the app files are in root directory>
-        buildozer_version: stable
+          submodules: true
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+    - name: set up JDK 17
+      uses: actions/setup-java@v3
       with:
-        name: package
-        path: ${{ steps.buildozer.outputs.filename }}
+        distribution: temurin
+        java-version: 17
+        cache: gradle
+
+    - name: Validate Gradle Wrapper
+      uses: gradle/wrapper-validation-action@v1
+
+    - name: Build with Gradle
+      run: ./gradlew qa --parallel
+
+    - name: Archive reports for failed build
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: reports
+        path: '*/build/reports'
